@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import type { ScrapeResult, ScrapeMultipleResult } from '@/types/scraper';
+import { processInParallel } from './parallel-scraper';
 
 export class ScraperService {
   async scrapeChapter(
@@ -60,6 +61,7 @@ export class ScraperService {
     titleSelector: string,
     contentSelector: string,
     onProgress?: (counter: number, chapterTitle: string, url: string) => void,
+    concurrency: number = 5,
   ): Promise<ScrapeMultipleResult> {
     if (!urlFormula.includes('${counter}')) {
       throw new Error('La fórmula de URL debe contener ${counter}');
@@ -68,11 +70,6 @@ export class ScraperService {
     if (!stopCondition.trim()) {
       throw new Error('La condición de parada es obligatoria');
     }
-
-    const chapters: ScrapeResult[] = [];
-    const errors: Array<{ counter: number; url: string; error: string }> = [];
-    let counter = 1;
-    let shouldContinue = true;
 
     // Crear función segura para evaluar la condición
     const evaluateCondition = (
@@ -97,6 +94,11 @@ export class ScraperService {
       }
     };
 
+    // Primero, generar todas las URLs que necesitamos scrapear
+    const urlsToScrape: Array<{ counter: number; url: string }> = [];
+    let counter = 1;
+    let shouldContinue = true;
+
     // Validar que la condición inicial sea válida
     try {
       shouldContinue = evaluateCondition(stopCondition, counter);
@@ -108,33 +110,10 @@ export class ScraperService {
       );
     }
 
+    // Generar lista de URLs
     while (shouldContinue) {
       const url = urlFormula.replace('${counter}', counter.toString());
-
-      try {
-        const result = await this.scrapeChapter(
-          url,
-          titleSelector,
-          contentSelector,
-        );
-        // Incluir el counter en el resultado para mantener el número de capítulo correcto
-        chapters.push({
-          ...result,
-          counter,
-        });
-        if (onProgress) {
-          onProgress(counter, result.chapterTitle, url);
-        }
-      } catch (error) {
-        errors.push({
-          counter,
-          url,
-          error: error instanceof Error ? error.message : String(error),
-        });
-
-        // Si hay un error, continuar con el siguiente capítulo
-        // pero si hay demasiados errores consecutivos, podríamos detener
-      }
+      urlsToScrape.push({ counter, url });
 
       counter++;
 
@@ -150,6 +129,71 @@ export class ScraperService {
         throw new Error(
           'Se alcanzó el límite máximo de iteraciones (10000). Verifica tu condición de parada.',
         );
+      }
+    }
+
+    // Procesar URLs en paralelo
+    const results = await processInParallel(
+      urlsToScrape,
+      async ({ counter, url }) => {
+        try {
+          const result = await this.scrapeChapter(
+            url,
+            titleSelector,
+            contentSelector,
+          );
+          return {
+            counter,
+            url,
+            result: { ...result, counter },
+            error: null,
+          };
+        } catch (error) {
+          return {
+            counter,
+            url,
+            result: null,
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+      },
+      concurrency,
+      (index, itemResult) => {
+        // Callback de progreso cuando se completa un capítulo
+        // itemResult es el objeto completo retornado por el processor
+        if (itemResult && itemResult.result && onProgress) {
+          onProgress(itemResult.counter, itemResult.result.chapterTitle, itemResult.url);
+        }
+      },
+    );
+
+    // Separar éxitos y errores
+    const chapters: ScrapeResult[] = [];
+    const errors: Array<{ counter: number; url: string; error: string }> = [];
+
+    for (const itemResult of results) {
+      // itemResult tiene la estructura: { item, result: R | null, error: string | null, index }
+      // donde R es el objeto retornado por el processor: { counter, url, result: ScrapeResult, error: null }
+      const processorResult = itemResult.result;
+      
+      if (processorResult && processorResult.result && !processorResult.error) {
+        // processorResult.result es el ScrapeResult con chapterTitle, content, etc.
+        chapters.push(processorResult.result);
+      } else if (processorResult) {
+        // Hubo un error en el processor
+        errors.push({
+          counter: processorResult.counter,
+          url: processorResult.url,
+          error: processorResult.error || 'Error desconocido',
+        });
+      } else if (itemResult.error) {
+        // Error al procesar el item (falló el processor mismo)
+        const item = itemResult.item as { counter: number; url: string };
+        errors.push({
+          counter: item.counter,
+          url: item.url,
+          error: itemResult.error,
+        });
       }
     }
 

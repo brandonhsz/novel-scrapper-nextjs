@@ -53,28 +53,58 @@ export async function scrapeManualUrlsAction(formData: FormData) {
     const chapters: Array<{ chapterTitle: string; url: string; content: string; counter?: number }> = [];
     const errors: Array<{ url: string; error: string }> = [];
 
-    // Procesar cada URL
-    for (const url of data.urls) {
-      try {
-        const result = await scraperService.scrapeChapter(
-          url,
-          data.titleSelector,
-          data.contentSelector,
-        );
-        
-        // Obtener el counter original del error si existe
-        const originalCounter = urlToCounterMap.get(url);
-        
+    // Procesar URLs en paralelo con concurrencia de 5
+    const { processInParallel } = await import('@/lib/scraper/parallel-scraper');
+    
+    const urlItems = data.urls.map((url, index) => ({ url, index }));
+    const results = await processInParallel(
+      urlItems,
+      async ({ url }) => {
+        try {
+          const result = await scraperService.scrapeChapter(
+            url,
+            data.titleSelector,
+            data.contentSelector,
+          );
+          
+          // Obtener el counter original del error si existe
+          const originalCounter = urlToCounterMap.get(url);
+          
+          return {
+            success: true,
+            chapterTitle: result.chapterTitle,
+            url: result.url,
+            content: result.content,
+            counter: originalCounter,
+            error: null,
+          };
+        } catch (error) {
+          return {
+            success: false,
+            chapterTitle: '',
+            url,
+            content: '',
+            counter: undefined,
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+      },
+      5, // Concurrencia: 5 requests simultáneos
+    );
+
+    // Separar éxitos y errores
+    for (const { result } of results) {
+      if (result && result.success) {
         chapters.push({
           chapterTitle: result.chapterTitle,
           url: result.url,
           content: result.content,
-          counter: originalCounter, // Usar el counter original si está disponible
+          counter: result.counter,
         });
-      } catch (error) {
+      } else if (result) {
         errors.push({
-          url,
-          error: error instanceof Error ? error.message : String(error),
+          url: result.url,
+          error: result.error || 'Error desconocido',
         });
       }
     }
@@ -110,7 +140,7 @@ export async function scrapeManualUrlsAction(formData: FormData) {
     if (error instanceof z.ZodError) {
       return {
         success: false,
-        error: error.errors.map((e) => e.message).join(', '),
+        error: error.issues.map((e) => e.message).join(', '),
       };
     }
 

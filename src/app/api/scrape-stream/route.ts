@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
       novelName,
       titleSelector,
       contentSelector,
+      enableParallelism = true,
     } = body;
 
     if (
@@ -51,6 +52,8 @@ export async function POST(request: NextRequest) {
             content: string;
           }> = [];
 
+          // Usar concurrencia según enableParallelism
+          const concurrency = enableParallelism ? 5 : 1;
           const result = await scraperService.scrapeMultipleChapters(
             urlFormula,
             stopCondition,
@@ -65,6 +68,7 @@ export async function POST(request: NextRequest) {
                 progress: progressPercent,
               });
             },
+            concurrency,
           );
 
           // Guardar todos los capítulos con su counter

@@ -15,7 +15,8 @@ const scraperFormSchema = z
   .object({
     novelName: z.string().min(1, 'El nombre de la novela es obligatorio'),
     url: z.string().url('URL inválida').optional().or(z.literal('')),
-    multiple: z.boolean().default(false),
+    multiple: z.boolean(),
+    enableParallelism: z.boolean(),
     urlFormula: z.string().optional().or(z.literal('')),
     stopCondition: z.string().optional().or(z.literal('')),
     titleSelector: z.string().min(1, 'El selector de título es obligatorio'),
@@ -65,6 +66,7 @@ export function ScraperForm({
       novelName: '',
       url: '',
       multiple: false,
+      enableParallelism: true,
       urlFormula: '',
       stopCondition: '',
       titleSelector: '',
@@ -100,6 +102,7 @@ export function ScraperForm({
             novelName: data.novelName,
             titleSelector: data.titleSelector,
             contentSelector: data.contentSelector,
+            enableParallelism: data.enableParallelism,
           }),
         });
 
@@ -252,6 +255,22 @@ export function ScraperForm({
 
       {isMultiple && (
         <>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="enableParallelism"
+              checked={watch('enableParallelism')}
+              onCheckedChange={(checked) =>
+                setValue('enableParallelism', checked === true)
+              }
+            />
+            <Label
+              htmlFor="enableParallelism"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Activar procesamiento paralelo (más rápido)
+            </Label>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="urlFormula">
               Fórmula de URL para Múltiples Capítulos

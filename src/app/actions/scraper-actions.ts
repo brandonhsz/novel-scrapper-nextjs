@@ -13,6 +13,7 @@ const scrapeChapterSchema = z.object({
   contentSelector: z
     .string()
     .min(1, 'El selector de contenido es obligatorio'),
+  enableParallelism: z.boolean().optional().default(true),
 });
 
 export async function scrapeChapterAction(formData: FormData) {
@@ -24,6 +25,7 @@ export async function scrapeChapterAction(formData: FormData) {
       stopCondition: formData.get('stopCondition'),
       titleSelector: formData.get('titleSelector'),
       contentSelector: formData.get('contentSelector'),
+      enableParallelism: formData.get('enableParallelism') === 'on' || formData.get('enableParallelism') === 'true' || formData.get('enableParallelism') === '',
     };
 
     const data = scrapeChapterSchema.parse(rawData);
@@ -42,11 +44,14 @@ export async function scrapeChapterAction(formData: FormData) {
     // Verificar si es scraping múltiple o individual
     if (data.urlFormula && data.stopCondition) {
       // Scraping múltiple
+      const concurrency = data.enableParallelism ? 5 : 1;
       const result = await scraperService.scrapeMultipleChapters(
         data.urlFormula,
         data.stopCondition,
         data.titleSelector,
         data.contentSelector,
+        undefined,
+        concurrency,
       );
 
       if (result.chapters.length === 0) {
@@ -106,7 +111,7 @@ export async function scrapeChapterAction(formData: FormData) {
     if (error instanceof z.ZodError) {
       return {
         success: false,
-        error: error.errors.map((e) => e.message).join(', '),
+        error: error.issues.map((e) => e.message).join(', '),
       };
     }
 
