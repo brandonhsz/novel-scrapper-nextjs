@@ -67,12 +67,13 @@ export async function POST(request: NextRequest) {
             },
           );
 
-          // Guardar todos los capítulos
+          // Guardar todos los capítulos con su counter
           chapters.push(
             ...result.chapters.map((ch) => ({
               chapterTitle: ch.chapterTitle,
               url: ch.url,
               content: ch.content,
+              counter: ch.counter, // Incluir el counter para mantener el número correcto
             })),
           );
 

@@ -117,7 +117,11 @@ export class ScraperService {
           titleSelector,
           contentSelector,
         );
-        chapters.push(result);
+        // Incluir el counter en el resultado para mantener el número de capítulo correcto
+        chapters.push({
+          ...result,
+          counter,
+        });
         if (onProgress) {
           onProgress(counter, result.chapterTitle, url);
         }

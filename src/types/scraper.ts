@@ -2,6 +2,7 @@ export interface ScrapeResult {
   chapterTitle: string;
   content: string;
   url: string;
+  counter?: number; // Número de capítulo del scraping (opcional para compatibilidad)
 }
 
 export interface ScrapeMultipleResult {

@@ -63,6 +63,7 @@ export async function scrapeChapterAction(formData: FormData) {
           chapterTitle: ch.chapterTitle,
           url: ch.url,
           content: ch.content,
+          counter: ch.counter, // Incluir el counter para mantener el número correcto
         })),
       );
 

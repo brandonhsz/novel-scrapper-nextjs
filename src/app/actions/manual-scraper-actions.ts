@@ -40,7 +40,17 @@ export async function scrapeManualUrlsAction(formData: FormData) {
     const scraperService = new ScraperService();
     const storageService = new StorageService();
 
-    const chapters: Array<{ chapterTitle: string; url: string; content: string }> = [];
+    // Obtener errores guardados para mapear URLs a counters
+    const failedChapters = storageService.getFailedChapters(data.novelName);
+    const urlToCounterMap = new Map<string, number>();
+    
+    if (failedChapters) {
+      failedChapters.forEach((error) => {
+        urlToCounterMap.set(error.url, error.counter);
+      });
+    }
+
+    const chapters: Array<{ chapterTitle: string; url: string; content: string; counter?: number }> = [];
     const errors: Array<{ url: string; error: string }> = [];
 
     // Procesar cada URL
@@ -51,10 +61,15 @@ export async function scrapeManualUrlsAction(formData: FormData) {
           data.titleSelector,
           data.contentSelector,
         );
+        
+        // Obtener el counter original del error si existe
+        const originalCounter = urlToCounterMap.get(url);
+        
         chapters.push({
           chapterTitle: result.chapterTitle,
           url: result.url,
           content: result.content,
+          counter: originalCounter, // Usar el counter original si está disponible
         });
       } catch (error) {
         errors.push({
@@ -64,7 +79,7 @@ export async function scrapeManualUrlsAction(formData: FormData) {
       }
     }
 
-    // Guardar capítulos exitosos
+    // Guardar capítulos exitosos con sus counters
     if (chapters.length > 0) {
       storageService.saveMultipleChapters(data.novelName, chapters);
     }

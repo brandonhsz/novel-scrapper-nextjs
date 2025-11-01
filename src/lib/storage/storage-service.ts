@@ -83,7 +83,7 @@ export class StorageService {
 
   saveMultipleChapters(
     novelName: string,
-    chapters: Array<{ chapterTitle: string; url: string; content: string }>,
+    chapters: Array<{ chapterTitle: string; url: string; content: string; counter?: number }>,
   ): { saved: number; novelData: NovelData } {
     let novelData = this.readNovelFile(novelName);
 
@@ -94,19 +94,48 @@ export class StorageService {
       };
     }
 
-    let nextChapterNumber =
-      novelData.chapters.length > 0
-        ? Math.max(...novelData.chapters.map((ch) => ch.chapterNumber)) + 1
-        : 1;
+    const newChapters: Chapter[] = chapters.map((chapter) => {
+      // Si tiene counter, usarlo como chapterNumber
+      // Si no, usar el método antiguo (para compatibilidad con scraping individual)
+      let chapterNumber: number;
+      
+      if (chapter.counter !== undefined) {
+        chapterNumber = chapter.counter;
+      } else {
+        // Fallback para compatibilidad: calcular basándose en el máximo existente
+        chapterNumber =
+          novelData.chapters.length > 0
+            ? Math.max(...novelData.chapters.map((ch) => ch.chapterNumber)) + 1
+            : 1;
+      }
 
-    const newChapters: Chapter[] = chapters.map((chapter) => ({
-      chapterNumber: nextChapterNumber++,
-      chapterTitle: chapter.chapterTitle,
-      url: chapter.url,
-      content: chapter.content,
-    }));
+      return {
+        chapterNumber,
+        chapterTitle: chapter.chapterTitle,
+        url: chapter.url,
+        content: chapter.content,
+      };
+    });
 
-    novelData.chapters.push(...newChapters);
+    // Verificar si hay capítulos duplicados (mismo chapterNumber) y reemplazarlos
+    // en lugar de agregarlos
+    newChapters.forEach((newChapter) => {
+      const existingIndex = novelData.chapters.findIndex(
+        (ch) => ch.chapterNumber === newChapter.chapterNumber,
+      );
+      
+      if (existingIndex >= 0) {
+        // Reemplazar el capítulo existente
+        novelData.chapters[existingIndex] = newChapter;
+      } else {
+        // Agregar nuevo capítulo
+        novelData.chapters.push(newChapter);
+      }
+    });
+
+    // Ordenar capítulos por chapterNumber
+    novelData.chapters.sort((a, b) => a.chapterNumber - b.chapterNumber);
+
     this.writeNovelFile(novelData);
 
     return {
