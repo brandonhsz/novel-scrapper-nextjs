@@ -62,20 +62,12 @@ export default function Home() {
 
   const handleSuccess = (message: string) => {
     toast.success(message);
-    // Cerrar modal después de un momento
-    setTimeout(() => {
-      setModalOpen(false);
-      setProgress(null);
-    }, 3000);
+    // NO cerrar el modal automáticamente - el usuario lo cerrará manualmente
   };
 
   const handleError = (error: string) => {
     toast.error(error);
-    // Cerrar modal después de un momento
-    setTimeout(() => {
-      setModalOpen(false);
-      setProgress(null);
-    }, 3000);
+    // NO cerrar el modal automáticamente - el usuario lo cerrará manualmente
   };
 
   return (

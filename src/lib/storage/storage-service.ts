@@ -69,7 +69,8 @@ export class StorageService {
     };
 
     novelData.chapters.push(newChapter);
-    this.writeNovelFile(novelData);
+    // NO guardar en disco - solo retornar los datos en memoria
+    // this.writeNovelFile(novelData);
 
     return {
       chapterNumber: nextChapterNumber,
@@ -136,7 +137,8 @@ export class StorageService {
     // Ordenar capítulos por chapterNumber
     novelData.chapters.sort((a, b) => a.chapterNumber - b.chapterNumber);
 
-    this.writeNovelFile(novelData);
+    // NO guardar en disco - solo retornar los datos en memoria
+    // this.writeNovelFile(novelData);
 
     return {
       saved: newChapters.length,
@@ -144,54 +146,61 @@ export class StorageService {
     };
   }
 
+  /**
+   * Genera el JSON de NovelData en memoria sin guardarlo en disco
+   */
+  generateNovelDataJSON(novelData: NovelData): string {
+    return JSON.stringify(novelData, null, 2);
+  }
+
   saveFailedChapters(
     novelName: string,
     errors: Array<{ counter: number; url: string; error: string }>,
-  ): void {
+  ): { failedData: { novelName: string; errors: Array<{ counter: number; url: string; error: string }>; timestamp: string }; json: string } | null {
     if (errors.length === 0) {
-      return;
+      return null;
     }
 
-    const failedFilePath = join(
-      this.failedDir,
-      `${novelName.replace(/[^a-zA-Z0-9-_]/g, '_')}_failed.json`,
-    );
-
-    let failedData: {
-      novelName: string;
-      errors: Array<{ counter: number; url: string; error: string }>;
-      timestamp: string;
+    const failedData = {
+      novelName,
+      errors,
+      timestamp: new Date().toISOString(),
     };
 
-    if (existsSync(failedFilePath)) {
-      try {
-        const fileContent = readFileSync(failedFilePath, 'utf-8');
-        failedData = JSON.parse(fileContent);
-        // Agregar nuevos errores a los existentes
-        failedData.errors.push(...errors);
-      } catch (error) {
-        console.error(`Error reading failed file ${failedFilePath}:`, error);
-        failedData = {
-          novelName,
-          errors,
-          timestamp: new Date().toISOString(),
-        };
-      }
-    } else {
-      failedData = {
-        novelName,
-        errors,
-        timestamp: new Date().toISOString(),
-      };
+    const json = JSON.stringify(failedData, null, 2);
+
+    // NO guardar en disco - solo retornar los datos en memoria
+    // writeFileSync(failedFilePath, json, 'utf-8');
+
+    return {
+      failedData,
+      json,
+    };
+  }
+
+  /**
+   * Genera el JSON de errores en memoria sin guardarlo en disco
+   */
+  generateFailedChaptersJSON(
+    novelName: string,
+    errors: Array<{ counter: number; url: string; error: string }>,
+  ): string | null {
+    if (errors.length === 0) {
+      return null;
     }
 
-    // Actualizar timestamp
-    failedData.timestamp = new Date().toISOString();
+    const failedData = {
+      novelName,
+      errors,
+      timestamp: new Date().toISOString(),
+    };
 
-    writeFileSync(failedFilePath, JSON.stringify(failedData, null, 2), 'utf-8');
+    return JSON.stringify(failedData, null, 2);
   }
 
   getFailedChapters(novelName: string): Array<{ counter: number; url: string; error: string }> | null {
+    // Ya no leemos de archivo, pero mantenemos el método para compatibilidad
+    // Si se necesita leer de archivos existentes, se puede implementar
     const failedFilePath = join(
       this.failedDir,
       `${novelName.replace(/[^a-zA-Z0-9-_]/g, '_')}_failed.json`,

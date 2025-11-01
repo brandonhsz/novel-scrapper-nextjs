@@ -8,6 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Download, FileJson } from 'lucide-react';
 
 interface CircularProgressProps {
   progress: number;
@@ -82,6 +84,8 @@ export type ScrapeProgressModalData =
       titleSelector?: string;
       contentSelector?: string;
       failedUrls?: string[];
+      novelJSON?: string;
+      failedJSON?: string | null;
     }
   | {
       type: 'error';
@@ -117,6 +121,66 @@ export function ScrapeProgressModal({
   }
 
   if (progress.type === 'complete') {
+    // Debug: verificar que los JSONs lleguen
+    console.log('Progress complete:', {
+      hasNovelJSON: !!progress.novelJSON,
+      hasFailedJSON: !!progress.failedJSON,
+      novelJSONLength: progress.novelJSON?.length,
+      failedJSONLength: progress.failedJSON?.length,
+    });
+
+    const handleDownloadJSON = (json: string, filename: string) => {
+      try {
+        console.log('Iniciando descarga:', filename, 'Size:', json.length);
+        const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        // Esperar un poco antes de remover
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 100);
+        console.log('Descarga iniciada:', filename);
+      } catch (error) {
+        console.error('Error al descargar:', error);
+      }
+    };
+
+    const handleDownloadNovel = () => {
+      if (progress.novelJSON) {
+        const sanitizedFileName = (progress.novelName || 'novel').replace(/[^a-zA-Z0-9-_]/g, '_');
+        handleDownloadJSON(progress.novelJSON, `${sanitizedFileName}.json`);
+      } else {
+        console.error('No hay novelJSON disponible');
+      }
+    };
+
+    const handleDownloadFailed = () => {
+      if (progress.failedJSON) {
+        const sanitizedFileName = (progress.novelName || 'novel').replace(/[^a-zA-Z0-9-_]/g, '_');
+        handleDownloadJSON(progress.failedJSON, `${sanitizedFileName}_failed.json`);
+      } else {
+        console.error('No hay failedJSON disponible');
+      }
+    };
+
+    const handleDownloadAll = () => {
+      if (progress.novelJSON) {
+        handleDownloadNovel();
+      }
+      if (progress.failedJSON) {
+        // Pequeño delay para evitar que el navegador bloquee múltiples descargas
+        setTimeout(() => {
+          handleDownloadFailed();
+        }, 300);
+      }
+    };
+
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
@@ -136,6 +200,38 @@ export function ScrapeProgressModal({
               </div>
             </DialogDescription>
           </DialogHeader>
+          <div className="flex flex-col gap-2 mt-4">
+            {progress.novelJSON && (
+              <Button
+                onClick={handleDownloadNovel}
+                variant="outline"
+                className="w-full justify-start"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Descargar JSON de Capítulos
+              </Button>
+            )}
+            {progress.failedJSON && (
+              <Button
+                onClick={handleDownloadFailed}
+                variant="outline"
+                className="w-full justify-start"
+              >
+                <FileJson className="mr-2 h-4 w-4" />
+                Descargar JSON de Errores
+              </Button>
+            )}
+            {progress.novelJSON && progress.failedJSON && (
+              <Button
+                onClick={handleDownloadAll}
+                variant="default"
+                className="w-full"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Descargar Ambos JSONs
+              </Button>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     );

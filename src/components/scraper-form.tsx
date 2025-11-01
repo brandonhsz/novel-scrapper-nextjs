@@ -123,7 +123,33 @@ export function ScraperForm({
 
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            // Procesar cualquier dato pendiente
+            if (currentEvent && currentData) {
+              try {
+                const eventData = JSON.parse(currentData);
+                if (eventData.success !== undefined) {
+                  onProgressChange?.({
+                    type: 'complete',
+                    message: eventData.message || 'Scraping completado',
+                    saved: eventData.saved,
+                    failed: eventData.failed,
+                    novelName: data.novelName,
+                    titleSelector: data.titleSelector,
+                    contentSelector: data.contentSelector,
+                    failedUrls: eventData.failedUrls || [],
+                    novelJSON: eventData.novelJSON,
+                    failedJSON: eventData.failedJSON || null,
+                  });
+                  onSuccess?.(eventData.message || 'Scraping completado');
+                  setIsSubmitting(false);
+                }
+              } catch (e) {
+                console.error('Error parsing final SSE data:', e);
+              }
+            }
+            break;
+          }
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n');
@@ -144,17 +170,19 @@ export function ScraperForm({
                       url: eventData.url,
                       progress: eventData.progress || 0,
                     });
-                  } else if (eventData.success !== undefined) {
-                    onProgressChange?.({
-                      type: 'complete',
-                      message: eventData.message || 'Scraping completado',
-                      saved: eventData.saved,
-                      failed: eventData.failed,
-                      novelName: data.novelName,
-                      titleSelector: data.titleSelector,
-                      contentSelector: data.contentSelector,
-                      failedUrls: eventData.failedUrls || [],
-                    });
+                    } else if (eventData.success !== undefined) {
+                      onProgressChange?.({
+                        type: 'complete',
+                        message: eventData.message || 'Scraping completado',
+                        saved: eventData.saved,
+                        failed: eventData.failed,
+                        novelName: data.novelName,
+                        titleSelector: data.titleSelector,
+                        contentSelector: data.contentSelector,
+                        failedUrls: eventData.failedUrls || [],
+                        novelJSON: eventData.novelJSON,
+                        failedJSON: eventData.failedJSON || null,
+                      });
                     onSuccess?.(eventData.message || 'Scraping completado');
                     setIsSubmitting(false);
                   } else if (eventData.error) {
@@ -166,7 +194,7 @@ export function ScraperForm({
                     setIsSubmitting(false);
                   }
                 } catch (e) {
-                  console.error('Error parsing SSE data:', e);
+                  console.error('Error parsing SSE data:', e, 'Data:', currentData.substring(0, 200));
                 }
                 currentEvent = '';
                 currentData = '';
@@ -174,7 +202,13 @@ export function ScraperForm({
             } else if (line.startsWith('event: ')) {
               currentEvent = line.substring(7).trim();
             } else if (line.startsWith('data: ')) {
-              currentData = line.substring(6).trim();
+              // Acumular datos que pueden venir en múltiples líneas
+              const dataLine = line.substring(6);
+              if (currentData) {
+                currentData += dataLine;
+              } else {
+                currentData = dataLine;
+              }
             }
           }
         }

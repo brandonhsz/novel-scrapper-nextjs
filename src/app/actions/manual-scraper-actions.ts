@@ -109,19 +109,26 @@ export async function scrapeManualUrlsAction(formData: FormData) {
       }
     }
 
-    // Guardar capítulos exitosos con sus counters
+    // Generar datos en memoria (no guardar en disco)
+    let novelJSON: string | null = null;
+    let failedJSON: string | null = null;
+
     if (chapters.length > 0) {
-      storageService.saveMultipleChapters(data.novelName, chapters);
+      const { novelData } = storageService.saveMultipleChapters(data.novelName, chapters);
+      novelJSON = storageService.generateNovelDataJSON(novelData);
     }
 
-    // Guardar errores si los hay
+    // Generar JSON de errores si los hay
     if (errors.length > 0) {
       const errorData = errors.map((e, index) => ({
         counter: index + 1,
         url: e.url,
         error: e.error,
       }));
-      storageService.saveFailedChapters(data.novelName, errorData);
+      const failedResult = storageService.saveFailedChapters(data.novelName, errorData);
+      if (failedResult) {
+        failedJSON = failedResult.json;
+      }
     }
 
     let message = `Se scrapearon ${chapters.length} capítulo(s) exitosamente`;
@@ -135,6 +142,8 @@ export async function scrapeManualUrlsAction(formData: FormData) {
       saved: chapters.length,
       failed: errors.length,
       errors: errors.length > 0 ? errors : undefined,
+      novelJSON,
+      failedJSON,
     };
   } catch (error) {
     if (error instanceof z.ZodError) {

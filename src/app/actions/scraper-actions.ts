@@ -62,7 +62,7 @@ export async function scrapeChapterAction(formData: FormData) {
         };
       }
 
-      const { saved } = storageService.saveMultipleChapters(
+      const { saved, novelData } = storageService.saveMultipleChapters(
         data.novelName,
         result.chapters.map((ch) => ({
           chapterTitle: ch.chapterTitle,
@@ -72,6 +72,18 @@ export async function scrapeChapterAction(formData: FormData) {
         })),
       );
 
+      // Generar JSON en memoria
+      const novelJSON = storageService.generateNovelDataJSON(novelData);
+      
+      // Generar JSON de errores si hay
+      let failedJSON: string | null = null;
+      if (result.errors.length > 0) {
+        const failedResult = storageService.saveFailedChapters(data.novelName, result.errors);
+        if (failedResult) {
+          failedJSON = failedResult.json;
+        }
+      }
+
       let message = `Se scrapearon ${saved} capítulos exitosamente`;
       if (result.failed > 0) {
         message += ` (${result.failed} fallaron)`;
@@ -80,6 +92,8 @@ export async function scrapeChapterAction(formData: FormData) {
       return {
         success: true,
         message,
+        novelJSON,
+        failedJSON,
       };
     } else if (data.url) {
       // Scraping individual

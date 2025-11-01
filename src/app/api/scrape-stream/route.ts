@@ -81,19 +81,27 @@ export async function POST(request: NextRequest) {
             })),
           );
 
-          const { saved } = storageService.saveMultipleChapters(
+          const { saved, novelData } = storageService.saveMultipleChapters(
             novelName,
             chapters,
           );
 
-          // Guardar capítulos fallidos
+          // Generar JSONs en memoria
+          const novelJSON = storageService.generateNovelDataJSON(novelData);
+          
+          // Generar JSON de errores si hay
+          let failedJSON: string | null = null;
           if (result.errors.length > 0) {
-            storageService.saveFailedChapters(novelName, result.errors);
+            const failedResult = storageService.saveFailedChapters(novelName, result.errors);
+            if (failedResult) {
+              failedJSON = failedResult.json;
+            }
           }
 
           // Obtener URLs fallidas para mostrar en el modal
           const failedUrls = result.errors.map((e) => e.url);
 
+          // Enviar los JSONs directamente en el evento complete
           sendEvent('complete', {
             success: true,
             saved,
@@ -105,6 +113,8 @@ export async function POST(request: NextRequest) {
             titleSelector,
             contentSelector,
             failedUrls,
+            novelJSON,
+            failedJSON,
           });
 
           controller.close();
