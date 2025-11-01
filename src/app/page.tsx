@@ -6,16 +6,57 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ScraperForm } from '@/components/scraper-form';
 import { ScrapeProgressModal } from '@/components/scrape-progress-modal';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { FloatingManualButton } from '@/components/floating-manual-button';
 import type { ScrapeProgressModalData } from '@/components/scrape-progress-modal';
 
 export default function Home() {
   const [progress, setProgress] = useState<ScrapeProgressModalData | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [showFloatingButton, setShowFloatingButton] = useState(false);
+  const [failedData, setFailedData] = useState<{
+    novelName: string;
+    titleSelector: string;
+    contentSelector: string;
+    failedUrls: string[];
+  } | null>(null);
 
   const handleProgressChange = (newProgress: ScrapeProgressModalData | null) => {
     setProgress(newProgress);
+    
+    // Si inicia un nuevo scraping (progreso), ocultar el botón flotante
+    if (newProgress?.type === 'progress') {
+      setShowFloatingButton(false);
+      setFailedData(null);
+    }
+    
     if (newProgress) {
       setModalOpen(true);
+      
+      // Si hay errores en el progreso completado, mostrar botón flotante
+      if (
+        newProgress.type === 'complete' &&
+        newProgress.failed &&
+        newProgress.failed > 0 &&
+        newProgress.novelName &&
+        newProgress.titleSelector &&
+        newProgress.contentSelector
+      ) {
+        setShowFloatingButton(true);
+        setFailedData({
+          novelName: newProgress.novelName,
+          titleSelector: newProgress.titleSelector,
+          contentSelector: newProgress.contentSelector,
+          failedUrls: newProgress.failedUrls || [],
+        });
+      } else if (newProgress.type === 'complete') {
+        // Si completó sin errores, ocultar el botón
+        setShowFloatingButton(false);
+        setFailedData(null);
+      }
+    } else {
+      // Si no hay progreso, ocultar el botón
+      setShowFloatingButton(false);
+      setFailedData(null);
     }
   };
 
@@ -78,6 +119,15 @@ export default function Home() {
         onOpenChange={setModalOpen}
         progress={progress}
       />
+
+      {showFloatingButton && failedData && (
+        <FloatingManualButton
+          novelName={failedData.novelName}
+          titleSelector={failedData.titleSelector}
+          contentSelector={failedData.contentSelector}
+          failedUrls={failedData.failedUrls}
+        />
+      )}
     </div>
   );
 }

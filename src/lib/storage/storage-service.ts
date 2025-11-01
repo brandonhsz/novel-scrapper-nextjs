@@ -161,5 +161,29 @@ export class StorageService {
 
     writeFileSync(failedFilePath, JSON.stringify(failedData, null, 2), 'utf-8');
   }
+
+  getFailedChapters(novelName: string): Array<{ counter: number; url: string; error: string }> | null {
+    const failedFilePath = join(
+      this.failedDir,
+      `${novelName.replace(/[^a-zA-Z0-9-_]/g, '_')}_failed.json`,
+    );
+
+    if (!existsSync(failedFilePath)) {
+      return null;
+    }
+
+    try {
+      const fileContent = readFileSync(failedFilePath, 'utf-8');
+      const failedData = JSON.parse(fileContent) as {
+        novelName: string;
+        errors: Array<{ counter: number; url: string; error: string }>;
+        timestamp: string;
+      };
+      return failedData.errors;
+    } catch (error) {
+      console.error(`Error reading failed file ${failedFilePath}:`, error);
+      return null;
+    }
+  }
 }
 

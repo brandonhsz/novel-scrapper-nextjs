@@ -86,6 +86,9 @@ export async function POST(request: NextRequest) {
             storageService.saveFailedChapters(novelName, result.errors);
           }
 
+          // Obtener URLs fallidas para mostrar en el modal
+          const failedUrls = result.errors.map((e) => e.url);
+
           sendEvent('complete', {
             success: true,
             saved,
@@ -93,6 +96,10 @@ export async function POST(request: NextRequest) {
             message: `Se scrapearon ${saved} capítulos exitosamente${
               result.failed > 0 ? ` (${result.failed} fallaron)` : ''
             }`,
+            novelName,
+            titleSelector,
+            contentSelector,
+            failedUrls,
           });
 
           controller.close();

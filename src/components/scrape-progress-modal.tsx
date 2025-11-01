@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -77,6 +78,10 @@ export type ScrapeProgressModalData =
       message: string;
       saved: number;
       failed?: number;
+      novelName?: string;
+      titleSelector?: string;
+      contentSelector?: string;
+      failedUrls?: string[];
     }
   | {
       type: 'error';

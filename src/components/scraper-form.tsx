@@ -147,6 +147,10 @@ export function ScraperForm({
                       message: eventData.message || 'Scraping completado',
                       saved: eventData.saved,
                       failed: eventData.failed,
+                      novelName: data.novelName,
+                      titleSelector: data.titleSelector,
+                      contentSelector: data.contentSelector,
+                      failedUrls: eventData.failedUrls || [],
                     });
                     onSuccess?.(eventData.message || 'Scraping completado');
                     setIsSubmitting(false);
