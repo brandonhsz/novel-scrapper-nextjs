@@ -4,28 +4,34 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScraperForm } from '@/components/scraper-form';
-import { ScrapeProgressComponent } from '@/components/scrape-progress';
-import type { ScrapeProgress } from '@/components/scrape-progress';
+import { ScrapeProgressModal } from '@/components/scrape-progress-modal';
+import type { ScrapeProgressModalData } from '@/components/scrape-progress-modal';
 
 export default function Home() {
-  const [progress, setProgress] = useState<ScrapeProgress | null>(null);
+  const [progress, setProgress] = useState<ScrapeProgressModalData | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
-  const handleProgressChange = (newProgress: ScrapeProgress | null) => {
+  const handleProgressChange = (newProgress: ScrapeProgressModalData | null) => {
     setProgress(newProgress);
+    if (newProgress) {
+      setModalOpen(true);
+    }
   };
 
   const handleSuccess = (message: string) => {
     toast.success(message);
-    // Limpiar progreso después de un momento
+    // Cerrar modal después de un momento
     setTimeout(() => {
+      setModalOpen(false);
       setProgress(null);
     }, 3000);
   };
 
   const handleError = (error: string) => {
     toast.error(error);
-    // Limpiar progreso después de un momento
+    // Cerrar modal después de un momento
     setTimeout(() => {
+      setModalOpen(false);
       setProgress(null);
     }, 3000);
   };
@@ -59,10 +65,13 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {progress && (
-          <ScrapeProgressComponent progress={progress} />
-        )}
       </div>
+
+      <ScrapeProgressModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        progress={progress}
+      />
     </div>
   );
 }

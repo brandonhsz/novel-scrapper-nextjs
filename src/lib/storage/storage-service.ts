@@ -4,10 +4,14 @@ import type { Chapter, NovelData } from '@/types/scraper';
 
 export class StorageService {
   private readonly dataDir = join(process.cwd(), 'data');
+  private readonly failedDir = join(process.cwd(), 'data', 'failed');
 
   constructor() {
     if (!existsSync(this.dataDir)) {
       mkdirSync(this.dataDir, { recursive: true });
+    }
+    if (!existsSync(this.failedDir)) {
+      mkdirSync(this.failedDir, { recursive: true });
     }
   }
 
@@ -109,6 +113,53 @@ export class StorageService {
       saved: newChapters.length,
       novelData,
     };
+  }
+
+  saveFailedChapters(
+    novelName: string,
+    errors: Array<{ counter: number; url: string; error: string }>,
+  ): void {
+    if (errors.length === 0) {
+      return;
+    }
+
+    const failedFilePath = join(
+      this.failedDir,
+      `${novelName.replace(/[^a-zA-Z0-9-_]/g, '_')}_failed.json`,
+    );
+
+    let failedData: {
+      novelName: string;
+      errors: Array<{ counter: number; url: string; error: string }>;
+      timestamp: string;
+    };
+
+    if (existsSync(failedFilePath)) {
+      try {
+        const fileContent = readFileSync(failedFilePath, 'utf-8');
+        failedData = JSON.parse(fileContent);
+        // Agregar nuevos errores a los existentes
+        failedData.errors.push(...errors);
+      } catch (error) {
+        console.error(`Error reading failed file ${failedFilePath}:`, error);
+        failedData = {
+          novelName,
+          errors,
+          timestamp: new Date().toISOString(),
+        };
+      }
+    } else {
+      failedData = {
+        novelName,
+        errors,
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    // Actualizar timestamp
+    failedData.timestamp = new Date().toISOString();
+
+    writeFileSync(failedFilePath, JSON.stringify(failedData, null, 2), 'utf-8');
   }
 }
 

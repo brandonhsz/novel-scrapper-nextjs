@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { scrapeChapterAction } from '@/app/actions/scraper-actions';
-import type { ScrapeProgress } from './scrape-progress';
+import type { ScrapeProgressModalData } from './scrape-progress-modal';
 
 const scraperFormSchema = z
   .object({
@@ -40,7 +40,7 @@ const scraperFormSchema = z
 type ScraperFormValues = z.infer<typeof scraperFormSchema>;
 
 interface ScraperFormProps {
-  onProgressChange?: (progress: ScrapeProgress | null) => void;
+  onProgressChange?: (progress: ScrapeProgressModalData | null) => void;
   onSuccess?: (message: string) => void;
   onError?: (error: string) => void;
 }
@@ -139,6 +139,7 @@ export function ScraperForm({
                       counter: eventData.counter,
                       chapterTitle: eventData.chapterTitle,
                       url: eventData.url,
+                      progress: eventData.progress || 0,
                     });
                   } else if (eventData.success !== undefined) {
                     onProgressChange?.({

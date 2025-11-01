@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { ScraperService } from '@/lib/scraper/scraper-service';
 import { StorageService } from '@/lib/storage/storage-service';
+import { calculateProgress } from '@/lib/scraper/progress-calculator';
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,10 +57,12 @@ export async function POST(request: NextRequest) {
             titleSelector,
             contentSelector,
             (counter: number, chapterTitle: string, url: string) => {
+              const progressPercent = calculateProgress(counter, stopCondition);
               sendEvent('progress', {
                 counter,
                 chapterTitle,
                 url,
+                progress: progressPercent,
               });
             },
           );
@@ -77,6 +80,11 @@ export async function POST(request: NextRequest) {
             novelName,
             chapters,
           );
+
+          // Guardar capítulos fallidos
+          if (result.errors.length > 0) {
+            storageService.saveFailedChapters(novelName, result.errors);
+          }
 
           sendEvent('complete', {
             success: true,
